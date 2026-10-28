@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>فضل طلب العلم – متون طالب العلم</title>
+<link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@500;700&family=Noto+Naskh+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+tailwind.config={theme:{extend:{colors:{ink:'#12142A',surf:'#1C1F3D',line:'#2E3262',paper:'#F2ECE0',mute:'#A5A9CC',mag:'#E0399B',gold:'#E8C26A',ok:'#4FD1A1',bad:'#FF6B6B'},fontFamily:{kufi:['"Reem Kufi"','Tahoma','sans-serif'],naskh:['"Noto Naskh Arabic"','Tahoma','serif']}}}}
+</script>
+<style>
+:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{background:#12142A}
+body{background:#12142A;color:#F2ECE0;font-family:"Noto Naskh Arabic",Tahoma,serif;min-height:100vh}
+button:focus-visible{outline:3px solid #E8C26A;outline-offset:2px}
+.hd{font-size:1.65rem;line-height:2.5rem}
+.opt{border:2px solid #2E3262;background:#1C1F3D}
+.opt.sel{border-color:#E8C26A;background:#2a2d57}
+.opt.right{border-color:#4FD1A1;background:#16372f}
+.opt.wrong{border-color:#FF6B6B;background:#3d1e2a}
+.chip{border:2px solid #2E3262;background:#1C1F3D;border-radius:.75rem;padding:.3rem .8rem}
+.chip:disabled{opacity:.25}
+</style>
+</head>
+<body>
+<div class="max-w-xl mx-auto min-h-screen flex flex-col px-4">
+  <header class="flex items-center gap-3 py-4 font-kufi">
+    <button id="close" class="text-2xl text-mute" aria-label="رجوع">✕</button>
+    <div class="flex-1 h-3 rounded-full bg-surf border border-line overflow-hidden"><div id="bar" class="h-full bg-ok transition-all" style="width:0%"></div></div>
+    <span id="hearts" class="text-lg">❤️ 5</span>
+  </header>
+  <main id="stage" class="flex-1 pb-40"></main>
+  <footer id="foot" class="fixed bottom-0 inset-x-0 border-t border-line bg-ink" style="padding-bottom:env(safe-area-inset-bottom,0px)"></footer>
+</div>
+
+<script>
+// ===== بيانات الباب (تُنقل لاحقاً إلى data/001.json) =====
+const CHS={}; // تُملأ من data/chapters/chN.js
+// ===== الحالة =====
+const KEY='matn-athkar-v1';
+let S={done:{},streak:0,last:'',hearts:5,score:0};
+try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
+const $=id=>document.getElementById(id);
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+let hearts=5,score=0,combo=0,mistakes=0,correct=0,queue=[],cur=null,sel=null,placed=[],bank=[],ci=0,locked=false;
+const stage=$('stage'),foot=$('foot');
+const goHome=()=>{location.href='index.html'};
+$('close').onclick=goHome;
+const id=+new URLSearchParams(location.search).get('id')||1;
+let CH;
+
+function setHud(){$('hearts').textContent='❤️ '+hearts;$('bar').style.width=(correct/CH.qs.length*100)+'%'}
+function btn(label,cls,fn,dis){foot.innerHTML=`<div class="max-w-xl mx-auto p-4"><button id="go" class="w-full rounded-2xl py-3 font-kufi text-xl ${cls}" ${dis?'disabled':''}>${label}</button></div>`;$('go').onclick=fn}
+
+// ===== وضع التعلم =====
+function learn(){
+  const c=CH.cards[ci];
+  stage.innerHTML=`<p class="text-mute font-kufi">تعلّم ${ci+1} من ${CH.cards.length}</p>
+  <div class="mt-3 rounded-2xl bg-surf border border-line p-5">
+    <p class="hd text-mag font-bold">${c.h}</p>
+    ${c.src?`<p class="mt-2 inline-block rounded-lg bg-ink px-3 text-gold text-sm">${c.src}</p>`:""}
+    <h3 class="font-kufi text-xl mt-5">المعنى باختصار</h3>
+    <p class="text-lg leading-loose mt-1">${c.simple}</p>
+    <h3 class="font-kufi text-xl mt-5">المفردات</h3>
+    <ul class="mt-2 space-y-2">${c.v.map(x=>`<li class="rounded-xl bg-ink p-3"><b class="text-gold">${x[0]}</b>: ${x[1]}</li>`).join('')}</ul>
+  </div>
+  <p class="text-xs text-mute mt-3">المتن مأخوذ من الكتاب بتشكيله. شرح المفردات المبسّط من إعداد التطبيق، عدا ما كُتب أنه من حاشية الكتاب.</p>`;
+  btn(ci<CH.cards.length-1?'التالي':'ابدأ الاختبار','bg-mag text-white',()=>{ci++;ci<CH.cards.length?learn():start()});
+}
+
+// ===== الاختبار =====
+function start(){queue=CH.qs.map(q=>({...q}));hearts=5;score=0;combo=0;mistakes=0;correct=0;setHud();next()}
+function next(){
+  if(!queue.length)return finish();
+  cur=queue[0];sel=null;locked=false;placed=[];
+  const q=cur;let body='';
+  if(q.t==='order'){
+    bank=shuffle(q.w.split(' ').map((w,i)=>({w,i})));
+    draw();return;
+  }
+  if(q.t==='tf')q.opts=[['صَحِيحٌ',q.v===true],['خَطَأٌ',q.v===false]];
+  else if(!q.opts)q.opts=shuffle(q.o.map((x,i)=>[x,i===0]));
+  const label=q.t==='fill'?'أَكْمِلِ الفَرَاغَ':q.t==='tf'?'صَحِيحٌ أَمْ خَطَأٌ؟':'اخْتَرِ الإِجَابَةَ';
+  stage.innerHTML=`<p class="text-mute font-kufi">${label}</p><p class="hd mt-3 mb-6">${q.p.replace('___','<span class="text-gold">_____</span>')}</p>
+  <div class="space-y-3">${q.opts.map((o,i)=>`<button data-i="${i}" class="opt w-full rounded-2xl p-4 text-xl text-start">${o[0]}</button>`).join('')}</div>`;
+  stage.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{if(locked)return;stage.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');sel=+b.dataset.i;btn('تحقّق','bg-gold text-ink',check)});
+  btn('تحقّق','bg-line text-mute',check,true);
+}
+function draw(){
+  stage.innerHTML=`<p class="text-mute font-kufi">رَتِّبِ الكَلِمَاتِ</p><p class="hd mt-3 mb-4">${cur.p}</p>
+  <div class="min-h-[7rem] rounded-2xl border-2 border-dashed border-line p-3 flex flex-wrap gap-2 content-start">${placed.map((x,k)=>`<button data-k="${k}" class="chip text-xl">${x.w}</button>`).join('')}</div>
+  <div class="mt-6 flex flex-wrap gap-2">${bank.map((x,k)=>`<button data-b="${k}" class="chip text-xl" ${x.u?'disabled':''}>${x.w}</button>`).join('')}</div>`;
+  stage.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{if(locked)return;const x=bank[+b.dataset.b];x.u=1;placed.push(x);draw()});
+  stage.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{if(locked)return;const x=placed.splice(+b.dataset.k,1)[0];x.u=0;draw()});
+  const full=placed.length===bank.length;
+  btn('تحقّق',full?'bg-gold text-ink':'bg-line text-mute',check,!full);
+}
+function check(){
+  if(locked)return;locked=true;
+  let ok,ans='';
+  if(cur.t==='order'){ok=placed.every((x,k)=>x.w===cur.w.split(' ')[k]);ans=cur.w}
+  else{ok=cur.opts[sel][1];ans=cur.t==='tf'?(cur.v?'صَحِيحٌ':'خَطَأٌ'):cur.opts.find(o=>o[1])[0];
+    stage.querySelectorAll('.opt').forEach((b,i)=>{if(cur.opts[i][1])b.classList.add('right');else if(i===sel)b.classList.add('wrong')})}
+  if(ok){combo++;score+=10+(combo>=3?5:0);correct++;queue.shift()}
+  else{combo=0;mistakes++;hearts--;queue.push(queue.shift())}
+  setHud();
+  const msg=ok?`<b class="text-ok font-kufi text-xl">أَحْسَنْتَ! ${combo>=2?'🔥 '+combo+' مُتَتَالِيَةٍ':''}</b>`:`<b class="text-bad font-kufi text-xl">الإِجَابَةُ الصَّحِيحَةُ:</b><p class="text-lg mt-1">${ans}</p><p class="text-sm text-mute mt-1">سَيَعُودُ هَذَا السُّؤَالُ لِتُثَبِّتَهُ.</p>`;
+  foot.innerHTML=`<div class="max-w-xl mx-auto p-4 ${ok?'bg-[#16372f]':'bg-[#3d1e2a]'}">${msg}<button id="go" class="mt-3 w-full rounded-2xl py-3 font-kufi text-xl ${ok?'bg-ok text-ink':'bg-bad text-ink'}">${hearts<=0?'انتهت القلوب':'متابعة'}</button></div>`;
+  $('go').onclick=()=>hearts<=0?over():next();
+}
+function over(){
+  stage.innerHTML=`<div class="text-center pt-16"><p class="text-6xl">💔</p><h2 class="font-kufi text-3xl mt-4">انتهت القلوب</h2><p class="text-mute mt-2 text-lg">راجِع البطاقات ثم أعد المحاولة، فالتكرار أساس الحفظ.</p></div>`;
+  btn('مراجعة البطاقات','bg-mag text-white',()=>{ci=0;learn()});
+}
+function finish(){
+  const stars=mistakes===0?3:mistakes<=2?2:1;
+  const day=t=>t.toLocaleDateString('en-CA'),today=day(new Date()),yest=day(new Date(Date.now()-864e5));
+  if(S.last!==today){S.streak=S.last===yest?S.streak+1:1;S.last=today}
+  S.done[id]=Math.max(S.done[id]||0,stars);S.score+=score;
+  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+  $('bar').style.width='100%';
+  stage.innerHTML=`<div class="text-center pt-12"><p class="text-5xl">${'⭐'.repeat(stars)}</p><h2 class="font-kufi text-3xl mt-4">أَتْمَمْتَ البَابَ</h2><p class="text-xl text-gold mt-1">${CH.title}</p>
+  <div class="grid grid-cols-3 gap-3 mt-8 font-kufi"><div class="rounded-2xl bg-surf border border-line p-3"><p class="text-2xl">⭐ ${score}</p><p class="text-sm text-mute">نقاط</p></div><div class="rounded-2xl bg-surf border border-line p-3"><p class="text-2xl">🔥 ${S.streak}</p><p class="text-sm text-mute">أيام</p></div><div class="rounded-2xl bg-surf border border-line p-3"><p class="text-2xl">✖ ${mistakes}</p><p class="text-sm text-mute">أخطاء</p></div></div></div>`;
+  btn('العودة للرئيسية','bg-ok text-ink',goHome);
+}
+
+const sc=document.createElement('script');
+sc.src='data/chapters/ch'+id+'.js';
+sc.onload=()=>{CH=CHS[id];learn()};
+sc.onerror=()=>{stage.innerHTML=`<p class="pt-16 text-center text-xl">الباب ${id} قيد الإعداد.</p>`;btn('العودة للرئيسية','bg-mag text-white',goHome)};
+document.head.appendChild(sc);
+</script>
+</body>
+</html>

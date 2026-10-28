@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>متون طالب العلم – الأذكار والآداب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@500;700&family=Noto+Naskh+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+tailwind.config={theme:{extend:{colors:{ink:'#12142A',surf:'#1C1F3D',line:'#2E3262',paper:'#F2ECE0',mute:'#A5A9CC',mag:'#E0399B',gold:'#E8C26A',ok:'#4FD1A1'},fontFamily:{kufi:['"Reem Kufi"','Tahoma','sans-serif'],naskh:['"Noto Naskh Arabic"','Tahoma','serif']}}}}
+</script>
+<style>
+:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:#12142A}
+body{background:#12142A;color:#F2ECE0;font-family:"Noto Naskh Arabic",Tahoma,serif;min-height:100vh}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+details[open] .chev{transform:rotate(180deg)}
+.chev{transition:transform .2s}
+a:focus-visible,summary:focus-visible,button:focus-visible{outline:3px solid #E8C26A;outline-offset:2px}
+.node{width:52px;height:52px;flex:none;font-family:"Reem Kufi",Tahoma,sans-serif}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(224,57,155,.55)}60%{box-shadow:0 0 0 12px rgba(224,57,155,0)}}
+.cur{animation:pulse 2s infinite}
+@media (prefers-reduced-motion:reduce){.cur{animation:none}.chev{transition:none}}
+</style>
+</head>
+<body>
+<header class="sticky top-0 z-10 bg-ink/95 backdrop-blur border-b border-line">
+  <div class="max-w-xl mx-auto flex items-center justify-between px-4 py-3 font-kufi text-lg">
+    <span id="streak" class="flex items-center gap-1" title="أيام متتالية">🔥 <b>0</b></span>
+    <span id="hearts" class="flex items-center gap-1" title="القلوب">❤️ <b>5</b></span>
+    <span id="score" class="flex items-center gap-1" title="النقاط">⭐ <b>0</b></span>
+  </div>
+</header>
+
+<main class="max-w-xl mx-auto px-4 pb-24">
+  <section class="pt-8 pb-6">
+    <h1 class="font-kufi text-4xl font-bold leading-tight">متون طالب العلم</h1>
+    <p class="text-mute mt-1 text-lg">المستوى الأول: الأذكار والآداب</p>
+    <div class="mt-5 h-3 rounded-full bg-surf border border-line overflow-hidden" role="progressbar" aria-label="التقدم الكلي">
+      <div id="bar" class="h-full bg-ok rounded-full transition-all" style="width:0%"></div>
+    </div>
+    <p id="count" class="text-sm text-mute mt-2"></p>
+  </section>
+
+  <a id="resume" href="#" class="block rounded-2xl bg-mag p-5 mb-8 text-white">
+    <span id="resumeLbl" class="text-sm opacity-90"></span>
+    <span id="resumeTitle" class="block font-kufi text-2xl mt-1 leading-snug"></span>
+    <span class="inline-block mt-3 rounded-xl bg-white text-mag font-kufi font-bold px-5 py-2">ابدأ الآن</span>
+  </a>
+
+  <div id="path"></div>
+</main>
+
+<div id="toast" class="fixed inset-x-4 z-20 max-w-sm mx-auto rounded-xl bg-paper text-ink text-center px-4 py-3 font-semibold opacity-0 pointer-events-none transition-opacity" style="bottom:calc(env(safe-area-inset-bottom,0px) + 20px)" role="status"></div>
+
+<script>
+// ربط صفحات الأبواب
+const CHAPTER_READY=true;
+// عدد الأبواب الجاهزة (يُزاد كلما أضفنا ملف باب جديد في data/chapters/)
+const AVAILABLE=368;
+
+// البيانات: [القسم الرئيسي, [[الباب الفرعي, عناوين الأبواب مفصولة بـ |]]]
+const D=[
+['الفضائل',[['الفضائل','فضل طلب العلم|فضل تعلم القرآن|فضل الذكر|فضل مجالس الذكر']]],
+['قسم الأذكار',[
+['الطهارة','دخول الخلاء|الخروج من الخلاء|إذا فرغ من الوضوء'],
+['الصلاة','الأذان|دخول المسجد والخروج منه|دعاء الاستفتاح|الوسوسة في الصلاة والقراءة|الركوع|الرفع من الركوع|السجود|التشهد|الدعاء قبل السلام|الأذكار بعد السلام|دعاء القنوت|إذا سلم من الوتر|الاستخارة'],
+['المرض','من أحس بوجع|الدعاء للمريض عند عيادته|ما يقوله المحتضر'],
+['الجنازة','الدعاء للميت في صلاة الجنازة|التعزية|الدعاء للميت بعد دفنه|دعاء زيارة المقابر'],
+['المصيبة','دعاء الكرب|إذا أصيب بمصيبة|إذا خاف قوما|الدعاء على العدو'],
+['السفر','ما يقال للمسافر عند الوداع|دعاء السفر|إذا صعد أو هبط في طريق سفره|إذا أسحر المسافر|دخول القرية|الرجوع من السفر'],
+['الحج','التلبية|الحجر الأسود|الدعاء بين الركنين|الصفا والمروة|المشعر الحرام|رمي الجمار|الذبح'],
+['البيت واللباس','دخول البيت|لبس الثوب الجديد'],
+['الطعام','إذا أخذ أول الثمر|التسمية أول الطعام|الحمد عند الفراغ من الطعام|الدعاء إذا أكل عند أحد'],
+['النكاح','الدعاء للمتزوج|ما يقوله إذا أتى أهله'],
+['الليل والنوم','إذا أقبل الليل|أذكار النوم|ما يقول إذا استيقظ'],
+['الرؤيا','الرؤيا الصالحة|الحلم المفزع'],
+['أذكار الصباح والمساء','أذكار الصباح والمساء|تعويذ الأولاد'],
+['أذكار عامة','التسبيح والتحميد|التهليل|الحوقلة|الاستغفار والتوبة'],
+['الريح والمطر','إذا عصفت الريح|عند نزول المطر'],
+['صياح الديك ونهيق الحمار','سماع صياح الديك ونهيق الحمار'],
+['المخالطة','من نزل منزلا|ما يقوله من أحب رجلا في الله|إذا رأى نعمة على غيره|عند التعجب من شيء|تشميت العاطس|الغضب|الدعاء لمن صنع معروفا|كفارة المجلس']
+]],
+['قسم الآداب',[
+['حق الله','الإخلاص لله|مراقبة الله|الدعاء|التصوير'],
+['عبادات','تعاهد القرآن|وجوب صلاة الجماعة|المشي إلى المساجد'],
+['حق المخلوقين','من حقوق النبي ﷺ|محبة الصحابة وتحريم سبهم|بر الوالدين|صلة الرحم|إكرام الجار|إكرام الضيف|توقير العلماء والصالحين|احترام الكبير|عيادة المريض'],
+['النظافة','آداب قضاء الحاجة|خصال الفطرة|السواك|العطاس|التثاؤب'],
+['اللباس والهيئة','تحريم الإسبال|آداب الانتعال|وجوب إعفاء اللحى|القزع|الوصل والوشم والنمص|التشبه'],
+['آداب الأكل والشرب','آداب الأكل|آداب الشرب|الفراغ من الأكل والشرب'],
+['العشرة','الطريق|السلام|الاستئذان|لا يطرق أهله ليلا|المجلس|الجليس|المدح في الوجه|تحريم احتقار المسلم|التناجي|تحريم المعازف'],
+['اللسان','الكلام|الصدق|الكلمة الطيبة|تحريم سب المسلم|الغيبة|النميمة|الكذب لإضحاك الناس'],
+['الأخلاق','حسن الخلق|البشاشة|التواضع|حب الخير للغير|الدلالة على الخير|الشكر'],
+['صفات مذمومة','الحسد|سوء الظن|الهجر|ذو الوجهين|الغش|سؤال الناس أموالهم'],
+['المرأة','الحياء|وجوب تغطية الوجه|تحريم سفر المرأة بلا محرم|حق الزوج على زوجته|غض البصر|تحريم الدخول على النساء|تحريم مصافحة النساء غير المحارم|تحريم الخلوة بالمرأة'],
+['لقاء الله','محبة لقاء الله']
+]]
+];
+
+// ---- الحالة المحفوظة ----
+const KEY='matn-athkar-v1';
+let S={done:{},streak:0,last:'',hearts:5,score:0};
+try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
+const fmt=t=>t.toLocaleDateString('en-CA');
+const today=fmt(new Date()),yest=fmt(new Date(Date.now()-864e5));
+const streak=(S.last===today||S.last===yest)?S.streak:0;
+
+// ---- تسطيح الأبواب ----
+const titles=[];
+D.forEach(g=>g[1].forEach(s=>s[1].split('|').forEach(t=>titles.push(t))));
+const total=titles.length;
+let next=titles.findIndex((_,i)=>!S.done[i+1])+1; // 0 إذا اكتملت كلها
+const doneCount=Object.keys(S.done).length;
+
+document.querySelector('#streak b').textContent=streak;
+document.querySelector('#hearts b').textContent=S.hearts;
+document.querySelector('#score b').textContent=S.score;
+document.getElementById('bar').style.width=(doneCount/total*100)+'%';
+document.getElementById('count').textContent=`أتممت ${doneCount} من ${total} باباً`;
+
+const r=document.getElementById('resume');
+if(next){
+  document.getElementById('resumeLbl').textContent=doneCount?'أكمل من حيث توقفت – الباب '+next:'ابدأ رحلتك – الباب '+next;
+  document.getElementById('resumeTitle').textContent=titles[next-1];
+  r.dataset.id=next;
+}else{
+  document.getElementById('resumeLbl').textContent='ما شاء الله، أتممت كل الأبواب';
+  document.getElementById('resumeTitle').textContent='راجع أي باب لتثبيت الحفظ';
+  r.dataset.id=1;
+}
+
+// ---- مسار الأقسام ----
+const offs=[0,34,0,-34];
+let id=0,html='';
+D.forEach(g=>{
+  html+=`<h2 class="font-kufi text-2xl text-gold mt-10 mb-3">${g[0]}</h2>`;
+  g[1].forEach(s=>{
+    const items=s[1].split('|'),first=id+1,last=id+items.length;
+    const d=items.filter((_,i)=>S.done[first+i]).length;
+    const open=(next>=first&&next<=last)||(!next&&first===1);
+    html+=`<details class="mb-3 rounded-2xl bg-surf border border-line" ${open?'open':''}>
+    <summary class="flex items-center justify-between gap-3 px-4 py-4">
+      <span class="font-kufi text-xl">${s[0]}</span>
+      <span class="flex items-center gap-3 text-sm text-mute">${d}/${items.length}
+        <svg class="chev" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6l5 5 5-5"/></svg></span>
+    </summary>
+    <div class="px-4 pb-5 pt-1 flex flex-col gap-4">`;
+    items.forEach((t,i)=>{
+      const n=first+i,isDone=!!S.done[n],isCur=n===next,locked=!isDone&&!isCur;
+      const cls=isDone?'bg-ok text-ink border-ok':isCur?'bg-mag text-white border-mag cur':'bg-ink text-mute border-line';
+      html+=`<a href="chapter.html?id=${n}" data-id="${n}" data-locked="${locked?1:0}" class="flex items-center gap-3" style="margin-inline-start:${offs[i%4]}px">
+        <span class="node rounded-full border-2 grid place-items-center text-lg font-bold ${cls}">${isDone?'✓':n}</span>
+        <span class="${locked?'text-mute':'text-paper'} leading-snug">${t}${isCur?'<small class="block text-mag font-kufi">الباب الحالي</small>':''}</span></a>`;
+    });
+    html+='</div></details>';
+    id=last;
+  });
+});
+document.getElementById('path').innerHTML=html;
+
+// ---- التنقل ----
+const toast=document.getElementById('toast');let tt;
+function say(m){toast.textContent=m;toast.style.opacity=1;clearTimeout(tt);tt=setTimeout(()=>toast.style.opacity=0,2600)}
+document.addEventListener('click',e=>{
+  const a=e.target.closest('a[data-id],#resume');if(!a)return;
+  e.preventDefault();
+  const n=+a.dataset.id;
+  if(a.dataset.locked==='1')return say(`أتمم الباب ${next} أولاً لفتح هذا الباب`);
+  if(CHAPTER_READY&&n<=AVAILABLE)location.href=`chapter.html?id=${n}`;
+  else say(`الباب ${n} قيد الإعداد، سيُضاف قريباً`);
+});
+</script>
+</body>
+</html>
